@@ -60,6 +60,9 @@ int main() {
 
     *count = 0;
 
+    // Print PID of the producer
+    printf("Producer PID: %d\n", getpid());
+
     // Producer Logic
     for (int i = 0; i < 5; i++) {
         put.sem_num = 0; // Wait for the producer semaphore
@@ -82,14 +85,14 @@ int main() {
             exit(EXIT_FAILURE);
         }
 
-//        sleep(1); // Simulate time taken to produce an item
+        sleep(1); // Simulate time taken to produce an item
     }
 
     // Signal completion by setting a special value (e.g., negative)
     *count = -1; // Indicate no more items will be produced
 
     get.sem_num = 1; // Signal the consumer semaphore one last time
-    get.sem_op = 1; // Increment the semaphore value
+    get.sem_op = 3; // Increment the semaphore value by 3 to wake all consumers
 
     if (semop(semid, &get, 1) == -1) {
         perror("semop");

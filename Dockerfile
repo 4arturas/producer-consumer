@@ -15,4 +15,5 @@ COPY pathname.txt .
 RUN gcc producer.c -o producer -lrt && \
     gcc consumer.c -o consumer -lrt
 
-CMD ["bash", "-c", "./producer & sleep 1 & ./consumer"]
+#CMD ["bash", "-c", "./producer & sleep 1 & ./consumer"]
+CMD ["bash", "-c", "./producer & sleep 1 & ./consumer & ./consumer & ./consumer"]

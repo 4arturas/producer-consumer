@@ -49,9 +49,11 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    while ( 1 )
-//    for (int i = 0; i < 5; i++)
-    {
+    // Print PID of the consumer
+//    printf("Consumer PID: %d\n", getpid());
+
+    // Consumer Logic
+    while (1) {
         get.sem_num = 1; // Wait for the consumer semaphore
         get.sem_op = -1; // Decrement the semaphore value
         get.sem_flg = 0;
@@ -62,10 +64,10 @@ int main() {
         }
 
         if (*count == -1) { // Check for termination signal
-            break;
+            break;          // Exit loop if no more items will be produced
         }
 
-        printf("Consumed item: %d\n", *count);
+        printf("Consumed item: %d by PID: %d\n", *count, getpid());
 
         put.sem_num = 0; // Signal the producer semaphore
         put.sem_op = 1; // Increment the semaphore value
@@ -77,9 +79,6 @@ int main() {
     }
 
     shmdt(count); // Detach from shared memory
-
-    shmctl(shmid, IPC_RMID, NULL);
-    semctl(semid, 0, IPC_RMID);
 
     printf("Consumer done!\n");
 

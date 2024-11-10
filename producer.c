@@ -18,30 +18,6 @@ union semun {
     struct seminfo *__buf;
 };
 
-int create_semaphore(int nsems) {
-    key_t key = ftok(PATHNAME, PROJECT_ID);
-    if (key == -1) {
-        perror("ftok");
-        exit(EXIT_FAILURE);
-    }
-
-    int semid = semget(key, nsems, IPC_CREAT | IPC_EXCL | 0666);
-    if (semid == -1) {
-        perror("semget");
-        exit(EXIT_FAILURE);
-    }
-    return semid;
-}
-
-void set_semaphore(int semid, unsigned short *values) {
-    union semun u;
-    u.array = values;
-    if (semctl(semid, 0, SETALL, u) == -1) {
-        perror("semctl");
-        exit(EXIT_FAILURE);
-    }
-}
-
 void cleanup(key_t shm_key, int semid) {
     int shmid = shmget(shm_key, 0, 0);
     if (shmid != -1) {
@@ -58,22 +34,33 @@ void cleanup(key_t shm_key, int semid) {
 }
 
 int main() {
+    int nsems = 2;
     int semid, shmid;
     struct sembuf put, get;
     unsigned short init_values[2] = {1, 0}; // Initial values for semaphores
 
-    // Create semaphore
-    semid = create_semaphore(2);
-    set_semaphore(semid, init_values);
-
-    // Create shared memory
-    key_t shm_key = ftok(PATHNAME, PROJECT_ID);
-    if (shm_key == -1) {
+    key_t key = ftok(PATHNAME, PROJECT_ID);
+    if (key == -1) {
         perror("ftok");
         exit(EXIT_FAILURE);
     }
 
-    shmid = shmget(shm_key, SHM_SIZE, IPC_CREAT | 0666);
+    // Create semaphore
+    semid = semget(key, nsems, IPC_CREAT | IPC_EXCL | 0666);
+    if (semid == -1) {
+        perror("semget");
+        exit(EXIT_FAILURE);
+    }
+
+    union semun u;
+    u.array = init_values;
+    if (semctl(semid, 0, SETALL, u) == -1) {
+        perror("semctl");
+        exit(EXIT_FAILURE);
+    }
+
+    // Create shared memory
+    shmid = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
     if (shmid == -1) {
         perror("shmget");
         exit(EXIT_FAILURE);
@@ -115,7 +102,7 @@ int main() {
     }
 
     shmdt(count);
-    cleanup(shm_key, semid);
+    cleanup(key, semid);
 
     return 0;
 }

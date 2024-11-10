@@ -18,21 +18,6 @@ union semun {
     struct seminfo *__buf;
 };
 
-void cleanup(key_t shm_key, int semid) {
-    int shmid = shmget(shm_key, 0, 0);
-    if (shmid != -1) {
-        shmctl(shmid, IPC_RMID, NULL);
-        printf("Shared memory removed.\n");
-    } else {
-        perror("shmget");
-    }
-
-    if (semid != -1) {
-        semctl(semid, 0, IPC_RMID);
-        printf("Semaphore removed.\n");
-    }
-}
-
 int main() {
     int nsems = 2;
     int semid, shmid;
@@ -75,9 +60,8 @@ int main() {
 
     *count = 0;
 
-    // while (1) 
-    for ( int i = 0; i < 5; i++ ) 
-    {
+    // Producer Logic
+    for (int i = 0; i < 5; i++) {
         put.sem_num = 0; // Wait for the producer semaphore
         put.sem_op = -1; // Decrement the semaphore value
         put.sem_flg = 0;
@@ -98,11 +82,27 @@ int main() {
             exit(EXIT_FAILURE);
         }
 
-        sleep(1);
+//        sleep(1); // Simulate time taken to produce an item
     }
 
-    shmdt(count);
-    cleanup(key, semid);
+    // Signal completion by setting a special value (e.g., negative)
+    *count = -1; // Indicate no more items will be produced
+
+    get.sem_num = 1; // Signal the consumer semaphore one last time
+    get.sem_op = 1; // Increment the semaphore value
+
+    if (semop(semid, &get, 1) == -1) {
+        perror("semop");
+        exit(EXIT_FAILURE);
+    }
+
+    shmdt(count); // Detach from shared memory
+
+    // Cleanup resources directly in main function
+    shmctl(shmid, IPC_RMID, NULL); // Remove shared memory segment
+    semctl(semid, 0, IPC_RMID);     // Remove semaphore set
+
+    printf("Producer done!\n");
 
     return 0;
 }

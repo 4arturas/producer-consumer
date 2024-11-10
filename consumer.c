@@ -18,52 +18,25 @@ union semun {
     struct seminfo *__buf;
 };
 
-int get_semaphore() {
+int main() {
+    int semid, shmid;
+    struct sembuf put, get;
+
     key_t key = ftok(PATHNAME, PROJECT_ID);
     if (key == -1) {
         perror("ftok");
         exit(EXIT_FAILURE);
     }
 
-    int semid = semget(key, 0, 0);
+    // Get semaphore ID
+    semid = semget(key, 0, 0);
     if (semid == -1) {
         perror("semget");
         exit(EXIT_FAILURE);
     }
-    
-    return semid;
-}
-
-void cleanup(key_t shm_key, int semid) {
-    int shmid = shmget(shm_key, 0, 0);
-    if (shmid != -1) {
-        shmctl(shmid, IPC_RMID, NULL);
-        printf("Shared memory removed.\n");
-    } else {
-        perror("shmget");
-    }
-
-    if (semid != -1) {
-        semctl(semid, 0, IPC_RMID);
-        printf("Semaphore removed.\n");
-    }
-}
-
-int main() {
-    int semid, shmid;
-    struct sembuf put, get;
-
-    // Get semaphore ID
-    semid = get_semaphore();
 
     // Access shared memory
-    key_t shm_key = ftok(PATHNAME, PROJECT_ID);
-    if (shm_key == -1) {
-        perror("ftok");
-        exit(EXIT_FAILURE);
-    }
-
-    shmid = shmget(shm_key, SHM_SIZE, 0666);
+    shmid = shmget(key, SHM_SIZE, 0666);
     if (shmid == -1) {
         perror("shmget");
         exit(EXIT_FAILURE);
@@ -76,8 +49,8 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // while (1)
-    for ( int i = 0; i < 5; i++ ) 
+    while ( 1 )
+//    for (int i = 0; i < 5; i++)
     {
         get.sem_num = 1; // Wait for the consumer semaphore
         get.sem_op = -1; // Decrement the semaphore value
@@ -86,6 +59,10 @@ int main() {
         if (semop(semid, &get, 1) == -1) {
             perror("semop");
             exit(EXIT_FAILURE);
+        }
+
+        if (*count == -1) { // Check for termination signal
+            break;
         }
 
         printf("Consumed item: %d\n", *count);
@@ -97,12 +74,14 @@ int main() {
             perror("semop");
             exit(EXIT_FAILURE);
         }
-
-        sleep(1);
     }
 
-    shmdt(count);
-    cleanup(shm_key, semid);
+    shmdt(count); // Detach from shared memory
+
+    shmctl(shmid, IPC_RMID, NULL);
+    semctl(semid, 0, IPC_RMID);
+
+    printf("Consumer done!\n");
 
     return 0;
 }

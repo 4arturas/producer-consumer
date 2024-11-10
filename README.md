@@ -7,3 +7,11 @@ ipcs -s
 ```sh
 ipcrm -s <semid>
 ````
+
+```sh
+docker build -t producer-consumer -f Dockerfile .
+````
+
+```sh
+docker run --rm -it --privileged producer-consumer
+````

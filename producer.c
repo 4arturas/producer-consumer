@@ -9,7 +9,7 @@
 
 #define PATHNAME "pathname.txt" // Path to an existing file for ftok
 #define PROJECT_ID 'A'         // Project identifier
-#define SHM_SIZE sizeof(int)   // Size of shared memory segment
+#define SHM_SIZE 12            // Size of shared memory segment (for 3 consumers)
 
 union semun {
     int val;
@@ -45,20 +45,18 @@ int main() {
     }
 
     // Create shared memory
-    shmid = shmget(key, SHM_SIZE, IPC_CREAT | 0666);
+    shmid = shmget(key, SHM_SIZE * sizeof(int), IPC_CREAT | 0666);
     if (shmid == -1) {
         perror("shmget");
         exit(EXIT_FAILURE);
     }
 
     // Attach to shared memory
-    int *count = (int *)shmat(shmid, NULL, 0);
-    if (count == (void *)-1) {
+    int *buffer = (int *)shmat(shmid, NULL, 0);
+    if (buffer == (void *)-1) {
         perror("shmat");
         exit(EXIT_FAILURE);
     }
-
-    *count = 0;
 
     // Print PID of the producer
     printf("Producer PID: %d\n", getpid());
@@ -74,8 +72,9 @@ int main() {
             exit(EXIT_FAILURE);
         }
 
-        (*count)++;
-        printf("Produced item: %d\n", *count);
+        // Produce an item and store it in the buffer
+        buffer[i % 3] = i + 1; // Store produced item in a cyclic manner
+//        printf("Produced item: %d at index %d\n", buffer[i % 3], i % 3);
 
         get.sem_num = 1; // Signal the consumer semaphore
         get.sem_op = 1; // Increment the semaphore value
@@ -88,8 +87,10 @@ int main() {
         sleep(1); // Simulate time taken to produce an item
     }
 
-    // Signal completion by setting a special value (e.g., negative)
-    *count = -1; // Indicate no more items will be produced
+    // Signal completion by setting a special value (-1)
+    for (int j = 0; j < 3; j++) {
+        buffer[j] = -1; // Indicate no more items will be produced
+    }
 
     get.sem_num = 1; // Signal the consumer semaphore one last time
     get.sem_op = 3; // Increment the semaphore value by 3 to wake all consumers
@@ -99,7 +100,7 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    shmdt(count); // Detach from shared memory
+    shmdt(buffer); // Detach from shared memory
 
     // Cleanup resources directly in main function
     shmctl(shmid, IPC_RMID, NULL); // Remove shared memory segment

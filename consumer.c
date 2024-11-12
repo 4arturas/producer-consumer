@@ -9,7 +9,7 @@
 
 #define PATHNAME "pathname.txt" // Path to an existing file for ftok
 #define PROJECT_ID 'A'         // Project identifier
-#define SHM_SIZE sizeof(int)   // Size of shared memory segment
+#define SHM_SIZE 12            // Size of shared memory segment (for 3 consumers)
 
 union semun {
     int val;
@@ -36,21 +36,23 @@ int main() {
     }
 
     // Access shared memory
-    shmid = shmget(key, SHM_SIZE, 0666);
+    shmid = shmget(key, SHM_SIZE * sizeof(int), 0666);
     if (shmid == -1) {
         perror("shmget");
         exit(EXIT_FAILURE);
     }
 
     // Attach to shared memory
-    int *count = (int *)shmat(shmid, NULL, 0);
-    if (count == (void *)-1) {
+    int *buffer = (int *)shmat(shmid, NULL, 0);
+    if (buffer == (void *)-1) {
         perror("shmat");
         exit(EXIT_FAILURE);
     }
 
     // Print PID of the consumer
-//    printf("Consumer PID: %d\n", getpid());
+    printf("Consumer PID: %d\n", getpid());
+
+    int index = getpid() % 3; // Assign each consumer a specific index based on its PID
 
     // Consumer Logic
     while (1) {
@@ -63,11 +65,11 @@ int main() {
             exit(EXIT_FAILURE);
         }
 
-        if (*count == -1) { // Check for termination signal
+        if (buffer[index] == -1) { // Check for termination signal
             break;          // Exit loop if no more items will be produced
         }
 
-        printf("Consumed item: %d by PID: %d\n", *count, getpid());
+        printf("Consumed item: %d by PID: %d from index: %d\n", buffer[index], getpid(), index);
 
         put.sem_num = 0; // Signal the producer semaphore
         put.sem_op = 1; // Increment the semaphore value
@@ -78,7 +80,7 @@ int main() {
         }
     }
 
-    shmdt(count); // Detach from shared memory
+    shmdt(buffer); // Detach from shared memory
 
     printf("Consumer done!\n");
 

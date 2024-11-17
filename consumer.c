@@ -11,13 +11,6 @@
 #define PROJECT_ID 'A'         // Project identifier
 #define SHM_SIZE 12            // Size of shared memory segment (for 3 consumers)
 
-union semun {
-    int val;
-    struct semid_ds *buf;
-    unsigned short *array;
-    struct seminfo *__buf;
-};
-
 int main() {
     int semid, shmid;
     struct sembuf put, get;
@@ -69,7 +62,7 @@ int main() {
             break;          // Exit loop if no more items will be produced
         }
 
-        printf("Consumed item: %d by PID: %d from index: %d\n", buffer[index], getpid(), index);
+        printf("Consumed PID: %d item: %d by from index: %d\n", getpid(), buffer[index], index);
 
         put.sem_num = 0; // Signal the producer semaphore
         put.sem_op = 1; // Increment the semaphore value
@@ -82,7 +75,11 @@ int main() {
 
     shmdt(buffer); // Detach from shared memory
 
-    printf("Consumer done!\n");
+    // Cleanup resources directly in main function
+    shmctl(shmid, IPC_RMID, NULL); // Remove shared memory segment
+    semctl(semid, 0, IPC_RMID);     // Remove semaphore set
+
+    printf("Consumer PID: %d done!\n", getpid() );
 
     return 0;
 }

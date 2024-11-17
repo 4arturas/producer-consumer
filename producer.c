@@ -74,7 +74,7 @@ int main() {
 
         // Produce an item and store it in the buffer
         buffer[i % 3] = i + 1; // Store produced item in a cyclic manner
-//        printf("Produced item: %d at index %d\n", buffer[i % 3], i % 3);
+        printf("Produced item: %d at index %d\n", buffer[i % 3], i % 3);
 
         get.sem_num = 1; // Signal the consumer semaphore
         get.sem_op = 1; // Increment the semaphore value
